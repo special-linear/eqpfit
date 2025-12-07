@@ -6,7 +6,7 @@ from fractions import Fraction
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from .binom import binom_int, binom_row
-from .model import FitResult, PORCModel
+from .model import EventualPORCResult, FitResult, PORCModel
 
 try:  # Optional dependency
     from flint import fmpz_mat, fmpz
@@ -566,3 +566,67 @@ def fit_porc(
     if return_all:
         return results
     return FitResult(L=1, d=d, success=False, model=None, reason="no_period_found")
+
+
+def fit_eventual_porc(
+    xs: Iterable[int],
+    vs: Iterable[int],
+    d: int,
+    *,
+    period: PeriodSpec = None,
+    require_all_residues: bool = True,
+    common_leading: bool = False,
+    leading_coeff: Optional[int] = None,
+    verify: bool = True,
+    backend: Backend = "auto",
+) -> EventualPORCResult:
+    """Attempt to fit a PORC model after discarding an initial prefix.
+
+    The function repeatedly tries to fit a quasi-polynomial to the suffixes of
+    the provided data, discarding the first point on each failure until a
+    solution is found or no points remain. Leading-coefficient constraints are
+    forwarded to the underlying ``fit_porc`` call.
+    """
+
+    xs_norm, vs_norm, failure = _normalize_points(xs, vs)
+    if failure:
+        return EventualPORCResult(
+            success=False,
+            start_index=0,
+            start_x=None,
+            fit_result=failure,
+            reason=failure.reason,
+            details=failure.details,
+        )
+
+    for start in range(len(xs_norm)):
+        xs_sub = xs_norm[start:]
+        vs_sub = vs_norm[start:]
+        result = fit_porc(
+            xs_sub,
+            vs_sub,
+            d,
+            period=period,
+            require_all_residues=require_all_residues,
+            common_leading=common_leading,
+            leading_coeff=leading_coeff,
+            verify=verify,
+            backend=backend,
+        )
+        if isinstance(result, list):  # defensive: fit_porc return_all=False yields FitResult
+            result = result[0] if result else FitResult(L=1, d=d, success=False, model=None, reason="no_period_found")
+        if result.success:
+            return EventualPORCResult(
+                success=True,
+                start_index=start,
+                start_x=xs_sub[0] if xs_sub else None,
+                fit_result=result,
+            )
+
+    return EventualPORCResult(
+        success=False,
+        start_index=len(xs_norm),
+        start_x=None,
+        fit_result=None,
+        reason="no_eventual_fit_found",
+    )

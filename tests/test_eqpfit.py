@@ -1,7 +1,7 @@
 import unittest
 
 import eqpfit.binom as binom
-from eqpfit import PORCModel, fit_period, fit_porc
+from eqpfit import PORCModel, fit_period, fit_porc, fit_eventual_porc
 
 
 class BinomTests(unittest.TestCase):
@@ -85,6 +85,34 @@ class FitPorcTests(unittest.TestCase):
         res = fit_porc(xs, vs, d=0, period=1, backend="auto")
         self.assertFalse(res.success)
         self.assertEqual(res.reason, "inconsistent_duplicate_x")
+
+
+class FitEventualPorcTests(unittest.TestCase):
+    def test_eventual_fit_discards_prefix(self):
+        xs = [-1, 0, 1, 2, 3]
+        vs = [5, 0, 1, 4, 9]  # leading point breaks global fit
+        res = fit_eventual_porc(xs, vs, d=2, period=1, backend="auto")
+        self.assertTrue(res.success)
+        self.assertEqual(res.start_index, 1)
+        self.assertEqual(res.start_x, 0)
+        self.assertIsNotNone(res.fit_result)
+        self.assertEqual(res.fit_result.model.eval(4), 16)
+
+    def test_eventual_fit_with_leading_coeff_constraint(self):
+        xs = [0, 1, 2, 3, 4, 5]
+        vs = [10, 1, 4, 9, 16, 25]  # first point off
+        res = fit_eventual_porc(xs, vs, d=2, period=2, leading_coeff=8, backend="auto")
+        self.assertTrue(res.success)
+        self.assertEqual(res.start_index, 1)
+        self.assertEqual(res.fit_result.model.coeffs_by_residue[0][-1], 8)
+        self.assertEqual(res.fit_result.model.coeffs_by_residue[1][-1], 8)
+
+    def test_eventual_fit_failure(self):
+        xs = [0, 2]
+        vs = [0, 4]
+        res = fit_eventual_porc(xs, vs, d=1, period=2, backend="auto")
+        self.assertFalse(res.success)
+        self.assertEqual(res.reason, "no_eventual_fit_found")
 
 
 if __name__ == "__main__":
