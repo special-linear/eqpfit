@@ -15,12 +15,21 @@ supports:
 - Eventual fitting that discards a minimal prefix until a PORC fit is found.
 
 ## Installation
-The project targets Python 3.11+. It depends only on the standard library by default;
-for the `flint` backend you need `python-flint` installed. Install from source:
+The project targets Python 3.11+. By default it depends only on the standard library
+and can be installed from source with:
 
 ```bash
 pip install -e .
 ```
+
+To enable the optional `flint` backend, install with the `flint` extra:
+
+```bash
+pip install -e .[flint]
+```
+
+The extra pulls in `python-flint`; ensure any system requirements for that package are
+satisfied on your platform.
 
 ## Key types
 - **PORCModel**: Holds `coeffs_by_residue` (binomial-basis coefficients of length `d+1`
