@@ -1,0 +1,198 @@
+"""PORC model representation and verification helpers."""
+from __future__ import annotations
+
+from fractions import Fraction
+from math import factorial
+from dataclasses import dataclass
+from typing import Dict, Iterable, List, Optional, Tuple
+
+from .binom import binom_row
+
+
+def _stirling1_table(n: int) -> List[List[int]]:
+    """Compute signed Stirling numbers of the first kind up to order ``n``."""
+
+    table = [[0] * (n + 1) for _ in range(n + 1)]
+    table[0][0] = 1
+    for i in range(1, n + 1):
+        for k in range(1, i + 1):
+            table[i][k] = table[i - 1][k - 1] - (i - 1) * table[i - 1][k]
+    return table
+
+
+def _binom_to_monomial(coeffs: List[int]) -> List[Fraction]:
+    """Convert binomial-basis coefficients to monomial coefficients."""
+
+    degree = len(coeffs) - 1
+    stirling = _stirling1_table(degree)
+    monomial: List[Fraction] = [Fraction(0) for _ in range(degree + 1)]
+    for k, ck in enumerate(coeffs):
+        if ck == 0:
+            continue
+        fact = factorial(k)
+        for j in range(k + 1):
+            s = stirling[k][j]
+            if s == 0:
+                continue
+            monomial[j] += Fraction(ck * s, fact)
+    return monomial
+
+
+def _format_fraction(value: Fraction) -> str:
+    return str(value.numerator) if value.denominator == 1 else f"{value.numerator}/{value.denominator}"
+
+
+def _format_monomial_poly(coeffs: List[Fraction], var: str = "t") -> str:
+    """Format a monomial-basis polynomial into a human-readable string."""
+
+    terms = []
+    for power, coeff in enumerate(coeffs):
+        if coeff == 0:
+            continue
+        coeff = Fraction(coeff)
+        sign = "-" if coeff < 0 else "+"
+        abs_coeff = abs(coeff)
+        if power == 0:
+            body = _format_fraction(abs_coeff)
+        elif power == 1:
+            if abs_coeff == 1:
+                body = var
+            else:
+                body = f"{_format_fraction(abs_coeff)}*{var}"
+        else:
+            if abs_coeff == 1:
+                body = f"{var}^{power}"
+            else:
+                body = f"{_format_fraction(abs_coeff)}*{var}^{power}"
+        terms.append((sign, body))
+
+    if not terms:
+        return "0"
+
+    first_sign, first_body = terms[0]
+    prefix = "" if first_sign == "+" else "-"
+    formatted = prefix + first_body
+    for sign, body in terms[1:]:
+        formatted += f" {sign} {body}"
+    return formatted
+
+
+@dataclass
+class FitResult:
+    L: int
+    d: int
+    success: bool
+    model: Optional["PORCModel"]
+    reason: Optional[str] = None
+    details: Optional[dict] = None
+
+    def __str__(self) -> str:  # pragma: no cover - trivial wrapper
+        return self._format()
+
+    __repr__ = __str__
+
+    def _format(self) -> str:
+        if not self.success:
+            base = f"FitResult: FAILED (L={self.L}, d={self.d}, reason={self.reason})"
+            if self.details:
+                base += f" details={self.details}"
+            return base
+
+        header = f"FitResult: SUCCESS (L={self.L}, d={self.d})"
+        if not self.model:
+            return header
+
+        lines = [header, self.model._format_coeffs(indent="  ")]
+        return "\n".join(lines)
+
+
+@dataclass
+class EventualPORCResult:
+    """Result wrapper for eventual PORC fitting.
+
+    Attributes
+    ----------
+    success: bool
+        Whether a fit was found after discarding a prefix.
+    start_index: int
+        Number of initial points discarded to obtain the fit.
+    start_x: Optional[int]
+        The first x-value of the fitted suffix (None when no points remain).
+    fit_result: Optional[FitResult]
+        The successful fit result if found.
+    reason: Optional[str]
+        Failure reason when ``success`` is False.
+    details: Optional[dict]
+        Optional auxiliary information.
+    """
+
+    success: bool
+    start_index: int
+    start_x: Optional[int]
+    fit_result: Optional[FitResult]
+    reason: Optional[str] = None
+    details: Optional[dict] = None
+
+    def __str__(self) -> str:  # pragma: no cover - trivial wrapper
+        return self._format()
+
+    __repr__ = __str__
+
+    def _format(self) -> str:
+        if not self.success:
+            base = (
+                f"EventualPORCResult: FAILED (start_index={self.start_index}, "
+                f"start_x={self.start_x}, reason={self.reason})"
+            )
+            if self.fit_result:
+                base += f"\nLast fit attempt -> {self.fit_result._format()}"
+            return base
+
+        fit_desc = (
+            "unknown period" if not self.fit_result else f"period {self.fit_result.L}"
+        )
+        header = (
+            f"EventualPORCResult: SUCCESS (dropped={self.start_index}, start_x={self.start_x}, "
+            f"{fit_desc})"
+        )
+        if self.fit_result:
+            return "\n".join([header, self.fit_result._format()])
+        return header
+
+
+class PORCModel:
+    def __init__(self, L: int, d: int, coeffs_by_residue: Dict[int, List[int]]):
+        self.L = L
+        self.d = d
+        self.coeffs_by_residue = coeffs_by_residue
+
+    def eval(self, x: int) -> int:
+        r = x % self.L
+        t = (x - r) // self.L
+        coeffs = self.coeffs_by_residue[r]
+        row = binom_row(t, len(coeffs) - 1)
+        return sum(c * b for c, b in zip(coeffs, row))
+
+    def verify(self, xs: Iterable[int], vs: Iterable[int]) -> Tuple[bool, Optional[Tuple[int, int, int]]]:
+        for x, v in zip(xs, vs):
+            val = self.eval(x)
+            if val != v:
+                return False, (x, v, val)
+        return True, None
+
+    def _format_coeffs(self, indent: str = "") -> str:
+        lines = [f"{indent}PORCModel (L={self.L}, d={self.d})"]
+        for r in sorted(self.coeffs_by_residue):
+            coeffs = self.coeffs_by_residue[r]
+            monomials = _binom_to_monomial(coeffs)
+            poly_str = _format_monomial_poly(monomials, var="t")
+            lines.append(f"{indent}  residue {r} ≡ x mod {self.L}: binom coeffs {coeffs}")
+            lines.append(
+                f"{indent}    Q_r(t) = {poly_str}  (t = (x-{r})/{self.L})"
+            )
+        return "\n".join(lines)
+
+    def __str__(self) -> str:  # pragma: no cover - trivial wrapper
+        return self._format_coeffs()
+
+    __repr__ = __str__
