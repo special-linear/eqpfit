@@ -1,7 +1,14 @@
 import unittest
 
 import eqpfit.binom as binom
-from eqpfit import PORCModel, fit_period, fit_porc, fit_eventual_porc
+from eqpfit import (
+    EventualPORCResult,
+    FitResult,
+    PORCModel,
+    fit_eventual_porc,
+    fit_period,
+    fit_porc,
+)
 
 
 class BinomTests(unittest.TestCase):
@@ -28,6 +35,37 @@ class ModelTests(unittest.TestCase):
         ok, counter = model.verify([0, 1, 2, 3], [0, 1, 4, 9])
         self.assertTrue(ok)
         self.assertIsNone(counter)
+
+    def test_string_shows_monomials(self):
+        coeffs_by_residue = {0: [0, 1, 2]}  # translates to Q(t) = t^2
+        model = PORCModel(L=1, d=2, coeffs_by_residue=coeffs_by_residue)
+        formatted = model._format_coeffs()
+        self.assertIn("binom coeffs [0, 1, 2]", formatted)
+        self.assertIn("Q_r(t) = t^2", formatted)
+
+    def test_string_formats(self):
+        fit_ok = fit_period([0, 2, 1, 3], [1, 3, 7, 11], d=1, L=2, backend="auto")
+        self.assertTrue(fit_ok.success)
+
+        formatted_fit = fit_ok._format()
+        self.assertIn("SUCCESS", formatted_fit)
+        self.assertIn("residue 0", formatted_fit)
+        self.assertIn("residue 1", formatted_fit)
+        self.assertIn("Q_r(t)", formatted_fit)
+
+        fail_fit = FitResult(L=2, d=1, success=False, model=None, reason="boom", details={"k": 1})
+        self.assertIn("FAILED", fail_fit._format())
+        self.assertIn("boom", fail_fit._format())
+
+        eventual = EventualPORCResult(
+            success=True,
+            start_index=1,
+            start_x=0,
+            fit_result=fit_ok,
+        )
+        formatted_eventual = eventual._format()
+        self.assertIn("dropped=1", formatted_eventual)
+        self.assertIn("period 2", formatted_eventual)
 
 
 class FitPeriodTests(unittest.TestCase):
