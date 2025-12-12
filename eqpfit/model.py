@@ -58,6 +58,13 @@ def _format_fraction(value: Fraction) -> str:
     return str(value.numerator) if value.denominator == 1 else f"{value.numerator}/{value.denominator}"
 
 
+def _fraction_to_sympy_literal(value: Fraction) -> int | str:
+    """Return int for whole Fractions, otherwise \"a/b\" string."""
+
+    frac = Fraction(value)
+    return frac.numerator if frac.denominator == 1 else f"{frac.numerator}/{frac.denominator}"
+
+
 def _format_monomial_poly(coeffs: List[Fraction], var: str = "t") -> str:
     """Format a monomial-basis polynomial into a human-readable string."""
 
@@ -204,12 +211,24 @@ class PORCModel:
                 return False, (x, v, val)
         return True, None
 
+    def as_coeffs_array(self) -> List[List[int | str]]:
+        """Return monomial coefficients per residue in a SymPy-friendly format.
+
+        Fractions are emitted as ``\"a/b\"`` strings that ``sympy.Rational`` can parse;
+        integer values stay as ``int``.
+        """
+
+        return [
+            [_fraction_to_sympy_literal(c) for c in self.monomial_coeffs_by_residue[r]]
+            for r in sorted(self.monomial_coeffs_by_residue)
+        ]
+
     def _format_coeffs(self, indent: str = "") -> str:
         lines = [f"{indent}PORCModel (L={self.L}, d={self.d})"]
         for r in sorted(self.coeffs_by_residue):
             coeffs = self.coeffs_by_residue[r]
             monomials_x = self.monomial_coeffs_by_residue[r]
-            monomials_t = _binom_to_monomial(coeffs)
+            # monomials_t = _binom_to_monomial(coeffs)
             poly_str_x = _format_monomial_poly(monomials_x, var="n")
             # poly_str_t = _format_monomial_poly(monomials_t, var="t")
             mono_list_x = ", ".join(_format_fraction(c) for c in monomials_x)

@@ -36,7 +36,8 @@ satisfied on your platform.
 ## Key types
 - **PORCModel**: Holds `coeffs_by_residue` (binomial-basis coefficients of length `d+1`
   per residue) plus `monomial_coeffs_by_residue` (Fractions in the usual `x` basis), and
-  provides `eval(x)` and `verify(xs, vs)`.
+  provides `eval(x)`, `verify(xs, vs)`, and `as_coeffs_array()` for SymPy-friendly
+  monomial coefficients (ints stay as ints, rationals as `"a/b"` strings).
 - **FitResult**: Returned by `fit_period` and `fit_porc`, with attributes `L`, `d`,
   `success`, `model`, `monomial_coeffs_by_residue`, `reason`, and optional `details`.
 - **EventualPORCResult**: Returned by `fit_eventual_porc`, with `start` (index of the
@@ -120,6 +121,14 @@ xs = list(range(6))
 vs = [x // 2 for x in xs]  # floor(x/2)
 res = fit_period(xs, vs, d=1, L=2)
 print(res.monomial_coeffs_by_residue)  # {0: [0, 1/2], 1: [-1/2, 1/2]}
+```
+
+Convert monomial coefficients for use with SymPy:
+
+```python
+import sympy as sp
+coeff_arrays = res.model.as_coeffs_array()  # [[0, "1/2"], ["-1/2", "1/2"]]
+sympy_coeffs = [[sp.Rational(c) for c in coeffs] for coeffs in coeff_arrays]
 ```
 
 ### Scan periods with a shared leading coefficient
