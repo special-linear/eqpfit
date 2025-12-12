@@ -210,11 +210,13 @@ class PORCModel:
             coeffs = self.coeffs_by_residue[r]
             monomials_x = self.monomial_coeffs_by_residue[r]
             monomials_t = _binom_to_monomial(coeffs)
-            poly_str = _format_monomial_poly(monomials_t, var="t")
+            poly_str_x = _format_monomial_poly(monomials_x, var="t")
+            # poly_str_t = _format_monomial_poly(monomials_t, var="t")
             mono_list_x = ", ".join(_format_fraction(c) for c in monomials_x)
-            lines.append(f"{indent}  residue {r} mod {self.L}: binom coeffs {coeffs}")
-            lines.append(f"{indent}    monomial coeffs in x [{mono_list_x}]")
-            lines.append(f"{indent}    Q_r(t) = {poly_str}  (t = (x-{r})/{self.L})")
+            # lines.append(f"{indent}  residue {r} mod {self.L}: binom coeffs {coeffs}")
+            lines.append(f"{indent}  residue {r} mod {self.L}:")
+            lines.append(f"{indent}  p_r(x) = {poly_str_x},  monomial coeffs in x [{mono_list_x}]")
+            # lines.append(f"{indent}    Q_r(t) = {poly_str_t}  (t = (x-{r})/{self.L})")
         return "\n".join(lines)
 
     def __str__(self) -> str:  # pragma: no cover - trivial wrapper
