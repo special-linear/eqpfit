@@ -11,6 +11,7 @@ supports:
 - Known period or automatic scanning over feasible periods.
 - Constraints on leading binomial coefficients (`common_leading`, `leading_coeff`).
 - Difference- and flint-based integer solvers selected automatically when possible.
+- Binomial- and monomial-basis coefficients for every fitted residue class.
 - Verification of exact fits, with structured failure reasons.
 - Eventual fitting that discards a minimal prefix until a PORC fit is found.
 
@@ -33,16 +34,17 @@ satisfied on your platform.
 
 ## Key types
 - **PORCModel**: Holds `coeffs_by_residue` (binomial-basis coefficients of length `d+1`
-  per residue) and provides `eval(x)` and `verify(xs, vs)`.
+  per residue) plus `monomial_coeffs_by_residue` (Fractions in the usual basis), and
+  provides `eval(x)` and `verify(xs, vs)`.
 - **FitResult**: Returned by `fit_period` and `fit_porc`, with attributes `L`, `d`,
-  `success`, `model`, `reason`, and optional `details`.
+  `success`, `model`, `monomial_coeffs_by_residue`, `reason`, and optional `details`.
 - **EventualPORCResult**: Returned by `fit_eventual_porc`, with `start` (index of the
   first retained point), the `fit` result, and `dropped` count.
 
 Readable `__str__`/`__repr__` forms summarize results, including per-residue binomial
-coefficients and the corresponding monomial polynomials `Q_r(t)` (where
-`t = (x - r) / L`) plus drop counts for eventual fits, so `print(fit_result)` gives a
-helpful snapshot.
+coefficients, derived monomial coefficients, and the corresponding monomial polynomials
+`Q_r(t)` (where `t = (x - r) / L`) plus drop counts for eventual fits, so
+`print(fit_result)` gives a helpful snapshot.
 
 ## Core APIs
 
@@ -104,6 +106,7 @@ vs = [0, 1, 4, 9]
 res = fit_period(xs, vs, d=2, L=1)
 assert res.success
 print(res.model.coeffs_by_residue)  # {0: [0, 0, 1]}
+print(res.monomial_coeffs_by_residue)  # {0: [Fraction(0, 1), Fraction(0, 1), Fraction(1, 1)]}
 print(res.model.eval(4))            # 16
 ```
 

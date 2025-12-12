@@ -1,4 +1,5 @@
 import unittest
+from fractions import Fraction
 
 import eqpfit.binom as binom
 from eqpfit import (
@@ -41,7 +42,23 @@ class ModelTests(unittest.TestCase):
         model = PORCModel(L=1, d=2, coeffs_by_residue=coeffs_by_residue)
         formatted = model._format_coeffs()
         self.assertIn("binom coeffs [0, 1, 2]", formatted)
+        self.assertIn("monomial coeffs [0, 0, 1]", formatted)
         self.assertIn("Q_r(t) = t^2", formatted)
+
+    def test_monomial_coeffs_exposed_on_results(self):
+        coeffs_by_residue = {0: [0, 1, 2]}
+        model = PORCModel(L=1, d=2, coeffs_by_residue=coeffs_by_residue)
+        self.assertEqual(
+            model.monomial_coeffs_by_residue[0],
+            [Fraction(0), Fraction(0), Fraction(1)],
+        )
+
+        fit_result = fit_period([0, 1, 2, 3], [0, 1, 4, 9], d=2, L=1, backend="auto")
+        self.assertTrue(fit_result.success)
+        self.assertEqual(
+            fit_result.monomial_coeffs_by_residue,
+            {0: [Fraction(0), Fraction(0), Fraction(1)]},
+        )
 
     def test_string_formats(self):
         fit_ok = fit_period([0, 2, 1, 3], [1, 3, 7, 11], d=1, L=2, backend="auto")

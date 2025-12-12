@@ -1,9 +1,9 @@
 """PORC model representation and verification helpers."""
 from __future__ import annotations
 
+from dataclasses import dataclass
 from fractions import Fraction
 from math import factorial
-from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from .binom import binom_row
@@ -85,6 +85,11 @@ class FitResult:
     model: Optional["PORCModel"]
     reason: Optional[str] = None
     details: Optional[dict] = None
+    monomial_coeffs_by_residue: Optional[Dict[int, List[Fraction]]] = None
+
+    def __post_init__(self) -> None:
+        if self.success and self.model and self.monomial_coeffs_by_residue is None:
+            self.monomial_coeffs_by_residue = self.model.monomial_coeffs_by_residue
 
     def __str__(self) -> str:  # pragma: no cover - trivial wrapper
         return self._format()
@@ -165,6 +170,9 @@ class PORCModel:
         self.L = L
         self.d = d
         self.coeffs_by_residue = coeffs_by_residue
+        self.monomial_coeffs_by_residue: Dict[int, List[Fraction]] = {
+            r: _binom_to_monomial(coeffs) for r, coeffs in coeffs_by_residue.items()
+        }
 
     def eval(self, x: int) -> int:
         r = x % self.L
@@ -184,12 +192,12 @@ class PORCModel:
         lines = [f"{indent}PORCModel (L={self.L}, d={self.d})"]
         for r in sorted(self.coeffs_by_residue):
             coeffs = self.coeffs_by_residue[r]
-            monomials = _binom_to_monomial(coeffs)
+            monomials = self.monomial_coeffs_by_residue[r]
             poly_str = _format_monomial_poly(monomials, var="t")
-            lines.append(f"{indent}  residue {r} ≡ x mod {self.L}: binom coeffs {coeffs}")
-            lines.append(
-                f"{indent}    Q_r(t) = {poly_str}  (t = (x-{r})/{self.L})"
-            )
+            mono_list = ", ".join(_format_fraction(c) for c in monomials)
+            lines.append(f"{indent}  residue {r} mod {self.L}: binom coeffs {coeffs}")
+            lines.append(f"{indent}    monomial coeffs [{mono_list}]")
+            lines.append(f"{indent}    Q_r(t) = {poly_str}  (t = (x-{r})/{self.L})")
         return "\n".join(lines)
 
     def __str__(self) -> str:  # pragma: no cover - trivial wrapper
