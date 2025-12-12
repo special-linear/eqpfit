@@ -8,12 +8,26 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 from .binom import binom_int, binom_row
 from .model import EventualPORCResult, FitResult, PORCModel
 
-try:  # Optional dependency
-    from flint import fmpz_mat, fmpz
+# flint is optional; detect lazily so a runtime install (e.g., in a notebook) is picked up
+_FLINT_AVAILABLE = False
 
+def _ensure_flint_available() -> bool:
+    """Try importing flint on demand and cache the result."""
+
+    global _FLINT_AVAILABLE, fmpz_mat, fmpz  # type: ignore[name-defined]
+    if _FLINT_AVAILABLE:
+        return True
+    try:
+        from flint import fmpz_mat as _fmpz_mat, fmpz as _fmpz
+    except Exception:
+        return False
+    fmpz_mat = _fmpz_mat  # type: ignore[assignment]
+    fmpz = _fmpz          # type: ignore[assignment]
     _FLINT_AVAILABLE = True
-except Exception:  # pragma: no cover - handled dynamically
-    _FLINT_AVAILABLE = False
+    return True
+
+# Attempt once at import time so existing behaviour is preserved when flint is already present
+_ensure_flint_available()
 
 Backend = str
 PeriodSpec = Union[int, Iterable[int], None]
@@ -69,7 +83,7 @@ def _solve_integer_system(A: List[List[int]], b: List[int]) -> Tuple[Optional[Li
     integer solution exists; otherwise None.
     """
 
-    if _FLINT_AVAILABLE:
+    if _ensure_flint_available():
         try:
             m = len(A)
             n = len(A[0]) if A else 0
@@ -269,7 +283,7 @@ def _rank(A: List[List[int]]) -> int:
 
 
 def _flint_fit_for_L(xs: List[int], vs: List[int], d: int, L: int, *, common_leading: bool, leading_coeff: Optional[int], require_all_residues: bool) -> FitResult:
-    if not _FLINT_AVAILABLE:
+    if not _ensure_flint_available():
         return FitResult(L, d, False, None, reason="flint_not_installed")
 
     residue_points: Dict[int, List[Tuple[int, int]]] = defaultdict(list)
@@ -472,7 +486,7 @@ def fit_period(
     if backend == "differences":
         return verify_model(_differences_fit_for_L(xs_norm, vs_norm, d, L, common_leading=common_leading, leading_coeff=leading_coeff, require_all_residues=require_all_residues))
     if backend == "flint":
-        if not _FLINT_AVAILABLE:
+        if not _ensure_flint_available():
             return FitResult(L, d, False, None, reason="flint_not_installed")
         return verify_model(_flint_fit_for_L(xs_norm, vs_norm, d, L, common_leading=common_leading, leading_coeff=leading_coeff, require_all_residues=require_all_residues))
     if backend != "auto":
@@ -484,13 +498,13 @@ def fit_period(
         if diff_result.success:
             return verify_model(diff_result)
         if diff_result.reason in {"insufficient_points_in_residue", "nonconsecutive_t_values"}:
-            if not _FLINT_AVAILABLE:
+            if not _ensure_flint_available():
                 return FitResult(L, d, False, None, reason="flint_required_for_nonconsecutive_data")
             alt = _flint_fit_for_L(xs_norm, vs_norm, d, L, common_leading=common_leading, leading_coeff=leading_coeff, require_all_residues=require_all_residues)
             return verify_model(alt)
         return diff_result
     else:
-        if not _FLINT_AVAILABLE:
+        if not _ensure_flint_available():
             return FitResult(L, d, False, None, reason="flint_required_for_nonconsecutive_data")
         alt = _flint_fit_for_L(xs_norm, vs_norm, d, L, common_leading=common_leading, leading_coeff=leading_coeff, require_all_residues=require_all_residues)
         return verify_model(alt)
