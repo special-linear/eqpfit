@@ -84,6 +84,18 @@ class ModelTests(unittest.TestCase):
         coeff_arrays = res.model.as_coeffs_array()
         self.assertEqual(coeff_arrays, [[0, "1/2"], ["-1/2", "1/2"]])
 
+    def test_as_latex_array(self):
+        xs = list(range(6))
+        vs = [x // 2 for x in xs]  # period-2 behavior: floor(x/2)
+        res = fit_period(xs, vs, d=1, L=2, backend="auto")
+        self.assertTrue(res.success)
+        latex = res.model.as_latex()
+        expected = r"""\begin{array}{ll}
+n \equiv 0 \pmod{2} & \frac{1}{2} n \\
+n \equiv 1 \pmod{2} & \frac{1}{2} n - \frac{1}{2}
+\end{array}"""
+        self.assertEqual(latex, expected)
+
     def test_string_formats(self):
         fit_ok = fit_period([0, 2, 1, 3], [1, 3, 7, 11], d=1, L=2, backend="auto")
         self.assertTrue(fit_ok.success)

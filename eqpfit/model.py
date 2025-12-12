@@ -58,6 +58,11 @@ def _format_fraction(value: Fraction) -> str:
     return str(value.numerator) if value.denominator == 1 else f"{value.numerator}/{value.denominator}"
 
 
+def _format_fraction_latex(value: Fraction) -> str:
+    frac = Fraction(value)
+    return str(frac.numerator) if frac.denominator == 1 else f"\\frac{{{frac.numerator}}}{{{frac.denominator}}}"
+
+
 def _fraction_to_sympy_literal(value: Fraction) -> int | str:
     """Return int for whole Fractions, otherwise \"a/b\" string."""
 
@@ -95,6 +100,41 @@ def _format_monomial_poly(coeffs: List[Fraction], var: str = "t") -> str:
     first_sign, first_body = terms[0]
     prefix = "" if first_sign == "+" else "-"
     formatted = prefix + first_body
+    for sign, body in terms[1:]:
+        formatted += f" {sign} {body}"
+    return formatted
+
+
+def _format_monomial_poly_latex(coeffs: List[Fraction], var: str = "n") -> str:
+    """Format a monomial-basis polynomial into a LaTeX string with leading term first."""
+
+    terms = []
+    degree = len(coeffs) - 1
+    for power in range(degree, -1, -1):
+        coeff = Fraction(coeffs[power])
+        if coeff == 0:
+            continue
+        sign = "-" if coeff < 0 else "+"
+        abs_coeff = abs(coeff)
+        if power == 0:
+            body = _format_fraction_latex(abs_coeff)
+        elif power == 1:
+            if abs_coeff == 1:
+                body = var
+            else:
+                body = f"{_format_fraction_latex(abs_coeff)} {var}"
+        else:
+            if abs_coeff == 1:
+                body = f"{var}^{power}"
+            else:
+                body = f"{_format_fraction_latex(abs_coeff)} {var}^{power}"
+        terms.append((sign, body))
+
+    if not terms:
+        return "0"
+
+    first_sign, first_body = terms[0]
+    formatted = first_body if first_sign == "+" else f"-{first_body}"
     for sign, body in terms[1:]:
         formatted += f" {sign} {body}"
     return formatted
@@ -222,6 +262,16 @@ class PORCModel:
             [_fraction_to_sympy_literal(c) for c in self.monomial_coeffs_by_residue[r]]
             for r in sorted(self.monomial_coeffs_by_residue)
         ]
+
+    def as_latex(self) -> str:
+        """Return monomial polynomials formatted as a left-aligned LaTeX array."""
+
+        rows = [
+            f"n \\equiv {r} \\pmod{{{self.L}}} & {_format_monomial_poly_latex(self.monomial_coeffs_by_residue[r], var='n')}"
+            for r in sorted(self.monomial_coeffs_by_residue)
+        ]
+        body = " \\\\\n".join(rows)
+        return "\\begin{array}{ll}\n" + body + "\n\\end{array}"
 
     def _format_coeffs(self, indent: str = "") -> str:
         lines = [f"{indent}PORCModel (L={self.L}, d={self.d})"]
