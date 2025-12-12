@@ -272,6 +272,9 @@ class PORCModel:
         ]
         body = " \\\\\n".join(rows)
         return "\\begin{array}{ll}\n" + body + "\n\\end{array}"
+    
+    def _repr_latex_(self):
+        return rf'${self.as_latex()}$'
 
     def _format_coeffs(self, indent: str = "") -> str:
         lines = [f"{indent}PORCModel (L={self.L}, d={self.d})"]
