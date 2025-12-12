@@ -46,8 +46,11 @@ helpful snapshot.
 
 ## Core APIs
 
-### fit_period(xs, vs, d, L, *, require_all_residues=True, common_leading=False,
-               leading_coeff=None, verify=True, backend="auto")
+### fit_period
+```python
+fit_period(xs, vs, d, L, *, require_all_residues=True, common_leading=False,
+           leading_coeff=None, verify=True, backend="auto")
+```
 Fit a PORC of degree `d` with fixed period `L`.
 
 - `xs`, `vs`: integer-like inputs; duplicates with conflicting values cause failure.
@@ -60,9 +63,12 @@ Fit a PORC of degree `d` with fixed period `L`.
 
 Returns a `FitResult`. When `success` is True, `model.eval(x)` reproduces all inputs.
 
-### fit_porc(xs, vs, d, period=None, *, require_all_residues=True,
-             common_leading=False, leading_coeff=None, verify=True,
-             return_all=False, include_failures=False, backend="auto")
+### fit_porc
+```python
+fit_porc(xs, vs, d, period=None, *, require_all_residues=True,
+         common_leading=False, leading_coeff=None, verify=True,
+         return_all=False, include_failures=False, backend="auto")
+```
 Scan candidate periods and return the first successful fit (or all results when
 `return_all=True`).
 
@@ -74,9 +80,12 @@ Scan candidate periods and return the first successful fit (or all results when
 Failures use machine-readable reasons such as `"nonconsecutive_t_values"`,
 `"common_leading_mismatch"`, or `"verification_failed"` to aid debugging.
 
-### fit_eventual_porc(xs, vs, d, *, period=None, require_all_residues=True,
-                     common_leading=False, leading_coeff=None, verify=True,
-                     return_all=False, include_failures=False, backend="auto")
+### fit_eventual_porc
+```python
+fit_eventual_porc(xs, vs, d, *, period=None, require_all_residues=True,
+                  common_leading=False, leading_coeff=None, verify=True,
+                  return_all=False, include_failures=False, backend="auto")
+```
 Find an eventual PORC: repeatedly drop the earliest point until a PORC fit of degree `d`
 exists or no data remains.
 
