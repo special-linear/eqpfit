@@ -11,7 +11,8 @@ supports:
 - Known period or automatic scanning over feasible periods.
 - Constraints on leading binomial coefficients (`common_leading`, `leading_coeff`).
 - Difference- and flint-based integer solvers selected automatically when possible.
-- Binomial- and monomial-basis coefficients for every fitted residue class.
+- Binomial- and monomial-basis coefficients for every fitted residue class (monomials
+  expressed in the original variable `x`, so denominators appear when `L>1`).
 - Verification of exact fits, with structured failure reasons.
 - Eventual fitting that discards a minimal prefix until a PORC fit is found.
 
@@ -34,7 +35,7 @@ satisfied on your platform.
 
 ## Key types
 - **PORCModel**: Holds `coeffs_by_residue` (binomial-basis coefficients of length `d+1`
-  per residue) plus `monomial_coeffs_by_residue` (Fractions in the usual basis), and
+  per residue) plus `monomial_coeffs_by_residue` (Fractions in the usual `x` basis), and
   provides `eval(x)` and `verify(xs, vs)`.
 - **FitResult**: Returned by `fit_period` and `fit_porc`, with attributes `L`, `d`,
   `success`, `model`, `monomial_coeffs_by_residue`, `reason`, and optional `details`.
@@ -42,8 +43,8 @@ satisfied on your platform.
   first retained point), the `fit` result, and `dropped` count.
 
 Readable `__str__`/`__repr__` forms summarize results, including per-residue binomial
-coefficients, derived monomial coefficients, and the corresponding monomial polynomials
-`Q_r(t)` (where `t = (x - r) / L`) plus drop counts for eventual fits, so
+coefficients, derived monomial coefficients in `x`, and the corresponding monomial
+polynomials `Q_r(t)` (where `t = (x - r) / L`) plus drop counts for eventual fits, so
 `print(fit_result)` gives a helpful snapshot.
 
 ## Core APIs
@@ -108,6 +109,17 @@ assert res.success
 print(res.model.coeffs_by_residue)  # {0: [0, 0, 1]}
 print(res.monomial_coeffs_by_residue)  # {0: [Fraction(0, 1), Fraction(0, 1), Fraction(1, 1)]}
 print(res.model.eval(4))            # 16
+```
+
+Monomial coefficients are always reported in the original variable `x`. For periodic
+models this can introduce rational coefficients even when values are integers:
+
+```python
+from eqpfit import fit_period
+xs = list(range(6))
+vs = [x // 2 for x in xs]  # floor(x/2)
+res = fit_period(xs, vs, d=1, L=2)
+print(res.monomial_coeffs_by_residue)  # {0: [0, 1/2], 1: [-1/2, 1/2]}
 ```
 
 ### Scan periods with a shared leading coefficient

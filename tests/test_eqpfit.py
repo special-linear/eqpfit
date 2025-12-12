@@ -42,7 +42,7 @@ class ModelTests(unittest.TestCase):
         model = PORCModel(L=1, d=2, coeffs_by_residue=coeffs_by_residue)
         formatted = model._format_coeffs()
         self.assertIn("binom coeffs [0, 1, 2]", formatted)
-        self.assertIn("monomial coeffs [0, 0, 1]", formatted)
+        self.assertIn("monomial coeffs in x [0, 0, 1]", formatted)
         self.assertIn("Q_r(t) = t^2", formatted)
 
     def test_monomial_coeffs_exposed_on_results(self):
@@ -59,6 +59,21 @@ class ModelTests(unittest.TestCase):
             fit_result.monomial_coeffs_by_residue,
             {0: [Fraction(0), Fraction(0), Fraction(1)]},
         )
+
+    def test_monomial_coeffs_use_original_variable(self):
+        xs = list(range(6))
+        vs = [x // 2 for x in xs]  # period-2 behavior: floor(x/2)
+        res = fit_period(xs, vs, d=1, L=2, backend="auto")
+        self.assertTrue(res.success)
+        self.assertEqual(
+            res.monomial_coeffs_by_residue,
+            {
+                0: [Fraction(0), Fraction(1, 2)],
+                1: [Fraction(-1, 2), Fraction(1, 2)],
+            },
+        )
+        formatted = res._format()
+        self.assertIn("monomial coeffs in x [0, 1/2]", formatted)
 
     def test_string_formats(self):
         fit_ok = fit_period([0, 2, 1, 3], [1, 3, 7, 11], d=1, L=2, backend="auto")

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
-from math import factorial
+from math import comb, factorial
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from .binom import binom_row
@@ -36,6 +36,22 @@ def _binom_to_monomial(coeffs: List[int]) -> List[Fraction]:
                 continue
             monomial[j] += Fraction(ck * s, fact)
     return monomial
+
+
+def _monomial_in_x(coeffs: List[int], L: int, r: int) -> List[Fraction]:
+    """Convert binomial-basis coefficients to monomial coefficients in the original ``x`` variable."""
+
+    monomial_t = _binom_to_monomial(coeffs)
+    degree = len(monomial_t) - 1
+    monomial_x: List[Fraction] = [Fraction(0) for _ in range(degree + 1)]
+    for power, a in enumerate(monomial_t):
+        if a == 0:
+            continue
+        scale = Fraction(1, L ** power)
+        for k in range(power + 1):
+            coefficient = a * Fraction(comb(power, k)) * scale * (Fraction(-r) ** (power - k))
+            monomial_x[k] += coefficient
+    return monomial_x
 
 
 def _format_fraction(value: Fraction) -> str:
@@ -171,7 +187,7 @@ class PORCModel:
         self.d = d
         self.coeffs_by_residue = coeffs_by_residue
         self.monomial_coeffs_by_residue: Dict[int, List[Fraction]] = {
-            r: _binom_to_monomial(coeffs) for r, coeffs in coeffs_by_residue.items()
+            r: _monomial_in_x(coeffs, L, r) for r, coeffs in coeffs_by_residue.items()
         }
 
     def eval(self, x: int) -> int:
@@ -192,11 +208,12 @@ class PORCModel:
         lines = [f"{indent}PORCModel (L={self.L}, d={self.d})"]
         for r in sorted(self.coeffs_by_residue):
             coeffs = self.coeffs_by_residue[r]
-            monomials = self.monomial_coeffs_by_residue[r]
-            poly_str = _format_monomial_poly(monomials, var="t")
-            mono_list = ", ".join(_format_fraction(c) for c in monomials)
+            monomials_x = self.monomial_coeffs_by_residue[r]
+            monomials_t = _binom_to_monomial(coeffs)
+            poly_str = _format_monomial_poly(monomials_t, var="t")
+            mono_list_x = ", ".join(_format_fraction(c) for c in monomials_x)
             lines.append(f"{indent}  residue {r} mod {self.L}: binom coeffs {coeffs}")
-            lines.append(f"{indent}    monomial coeffs [{mono_list}]")
+            lines.append(f"{indent}    monomial coeffs in x [{mono_list_x}]")
             lines.append(f"{indent}    Q_r(t) = {poly_str}  (t = (x-{r})/{self.L})")
         return "\n".join(lines)
 
